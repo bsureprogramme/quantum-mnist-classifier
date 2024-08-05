@@ -1,6 +1,7 @@
 import pennylane as qml
 import torch
 import torch.nn as nn
+import numpy as np
 import itertools
 
 class QModel(nn.Module):
@@ -15,25 +16,24 @@ class QModel(nn.Module):
         self.batchQNode = qml.batch_input(self.circuitQNode, argnum=0)
         self.qLayer = qml.qnn.TorchLayer(self.batchQNode, self.weight_shapes, init_method=self.init_method)
         self.flatten = nn.Flatten()
-        self.finalFlatten = nn.Flatten(start_dim=0)
 
     def entangling_layer(self):
-        for i in range(self.n_qubits - 1):
-            qml.CNOT(wires=[i, i + 1])
-        qml.CNOT(wires=[self.n_qubits - 1, 0])
+        for pair in itertools.combinations(range(self.n_qubits), 2):
+            qml.CNOT(wires=pair)
 
     def circuit(self, inputs, weights):
-        qml.AmplitudeEmbedding(inputs, wires=range(self.n_qubits), normalize=True)
+        qml.AmplitudeEmbedding(inputs, wires=range(self.n_qubits - 1), normalize=True)
         for layer in range(self.n_layers):
-            for wire in range(self.n_qubits):
+            for wire in range(self.n_qubits - 1):
                 qml.RZ(weights[layer, wire, 0], wires=wire)
                 qml.RX(weights[layer, wire, 1], wires=wire)
                 qml.RZ(weights[layer, wire, 2], wires=wire)
             self.entangling_layer()
-        return [qml.expval(qml.PauliZ(i)) for i in range(self.n_qubits)]
+        qml.RX(weights[-1, -1, 0], wires=self.n_qubits - 1)  # Output qubit rotation
+        return qml.expval(qml.PauliZ(self.n_qubits - 1))
 
     def forward(self, x):
-        x = self.flatten(x)
+        x = self.flatten(x)[:, :256]  # Use only the first 256 elements
         x = self.qLayer(x)
-        x = self.finalFlatten(x)
+        x = torch.sigmoid(x)  # Use sigmoid activation for binary classification
         return x

@@ -1,3 +1,10 @@
+import sys
+import os
+
+# Add the parent directory to the system path to resolve the import issue
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(parent_dir)
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -33,9 +40,9 @@ for epoch in range(epochs):
     total = 0
     print(f"Epoch {epoch + 1}")
     for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device, dtype=torch.float)
+        images, labels = images.to(device), labels.to(device, dtype=torch.float).squeeze()  # Ensure labels match output size
         optimizer.zero_grad()
-        output = model(images)
+        output = model(images).squeeze()  # Ensure output is squeezed to match labels
         loss = loss_fn(output, labels)
         total_loss += loss.item()
         predict = torch.round(output)
@@ -68,8 +75,8 @@ model.eval()
 total_loss, correct, total = 0, 0, 0
 with torch.no_grad():
     for images, labels in test_loader:
-        images, labels = images.to(device), labels.to(device, dtype=torch.float)
-        output = model(images)
+        images, labels = images.to(device), labels.to(device, dtype=torch.float).squeeze()  # Ensure labels match output size
+        output = model(images).squeeze()  # Ensure output is squeezed to match labels
         loss = loss_fn(output, labels)
         total_loss += loss.item()
         predict = torch.round(output)
