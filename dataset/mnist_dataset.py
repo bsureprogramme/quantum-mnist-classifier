@@ -1,18 +1,23 @@
 import torchvision.transforms as transforms
-from torchvision.datasets import MNIST
-from torch.utils.data import DataLoader
+from torchvision import datasets
+import torch
+import numpy as np
 
-def get_mnist_dataloaders(batch_size=32):
-    transform = transforms.Compose([
-        transforms.Resize((16, 16)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+def get_mnist_dataloaders(batch_size=256):
+    transform_list = transforms.Compose([transforms.ToTensor(), transforms.Resize((16, 16))])
+    
+    train_data = datasets.MNIST(root='data', train=True, transform=transform_list, download=True)
+    test_data = datasets.MNIST(root='data', train=False, transform=transform_list)
 
-    train_dataset = MNIST(root='./data', train=True, download=True, transform=transform)
-    test_dataset = MNIST(root='./data', train=False, download=True, transform=transform)
+    # Binary classification for digits 0 and 1
+    idx = torch.as_tensor(train_data.targets) == 1
+    idx += torch.as_tensor(train_data.targets) == 0
+    train_data = torch.utils.data.dataset.Subset(train_data, np.where(idx == 1)[0])
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
 
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+    idx = torch.as_tensor(test_data.targets) == 1
+    idx += torch.as_tensor(test_data.targets) == 0
+    test_data = torch.utils.data.dataset.Subset(test_data, np.where(idx == 1)[0])
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=0)
     
     return train_loader, test_loader
