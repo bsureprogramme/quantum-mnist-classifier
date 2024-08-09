@@ -17,7 +17,7 @@ from model.quantum_model import QModel
 # Hyperparameters
 batch_size = 256
 learning_rate = 0.005
-epochs = 200
+epochs = 100
 
 # Get data loaders
 train_loader, test_loader = get_mnist_dataloaders(batch_size)
