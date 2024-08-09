@@ -7,7 +7,7 @@ import itertools
 class QModel(nn.Module):
     def __init__(self):
         super(QModel, self).__init__()
-        self.n_qubits = 9
+        self.n_qubits = 9  # 8 for processing, 1 for output
         self.n_layers = 2
         self.device = qml.device('default.qubit', wires=self.n_qubits)
         self.weight_shapes = {"weights": (self.n_layers, self.n_qubits, 3)}
@@ -18,7 +18,7 @@ class QModel(nn.Module):
         self.flatten = nn.Flatten()
 
     def entangling_layer(self):
-        for pair in itertools.combinations(range(self.n_qubits), 2):
+        for pair in itertools.combinations(range(self.n_qubits - 1), 2):
             qml.CNOT(wires=pair)
 
     def circuit(self, inputs, weights):
@@ -29,11 +29,9 @@ class QModel(nn.Module):
                 qml.RX(weights[layer, wire, 1], wires=wire)
                 qml.RZ(weights[layer, wire, 2], wires=wire)
             self.entangling_layer()
-        qml.RX(weights[-1, -1, 0], wires=self.n_qubits - 1)  # Output qubit rotation
-        return qml.expval(qml.PauliZ(self.n_qubits - 1))
+        return qml.probs(wires=self.n_qubits - 1)  # Measure probability distribution
 
     def forward(self, x):
         x = self.flatten(x)[:, :256]  # Use only the first 256 elements
         x = self.qLayer(x)
-        x = torch.sigmoid(x)  # Use sigmoid activation for binary classification
-        return x
+        return x  # Return the probabilities directly
