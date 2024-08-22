@@ -13,11 +13,13 @@ import time
 import math
 from dataset.mnist_dataset import get_mnist_dataloaders
 from model.quantum_model import QModel
+from adversaries.FGSM import fgsm_attack
+from adversaries.bim2 import bim_attack
 
 # Hyperparameters
 batch_size = 256
 learning_rate = 0.005
-epochs = 100
+epochs = 200
 
 # Get data loaders
 train_loader, test_loader = get_mnist_dataloaders(batch_size)
@@ -33,18 +35,20 @@ epoch_losses = []
 epoch_accuracies = []
 epoch_times = []
 
+model.train()
 # Training loop
 for epoch in range(epochs):
     start_time = time.time()
-    model.train()
     total_loss = 0
     correct = 0
     total = 0
 
     for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device, dtype=torch.float).squeeze()  # Ensure labels match output size
+        images, labels = images.to(device), labels.to(device, dtype=torch.float)  # Ensure labels match output size
         optimizer.zero_grad()
+        images = bim_attack(model, loss_fn, images, labels, 0.3, 3)
         output_probs = model(images)[:, 1]  # Use only the probability for the positive class (|1⟩)
+        #print(output_probs)
         loss = loss_fn(output_probs, labels)
         total_loss += loss.item()
         predict = torch.round(output_probs)
@@ -72,7 +76,7 @@ for epoch in range(epochs):
           f"Time: {epoch_duration:.2f} seconds")
 
 # Save the trained model weights
-torch.save(model.state_dict(), "qModel.pth")
+torch.save(model.state_dict(), "train/qModel.pth")
 
 # Plotting the training loss and accuracy
 fig, ax1 = plt.subplots()
