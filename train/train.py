@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import time
-import math
+import csv
 from dataset.mnist_dataset import get_mnist_dataloaders
 from model.quantum_model import QModel
 from adversaries.FGSM import fgsm_attack
@@ -31,11 +31,12 @@ loss_fn = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Lists to store loss, accuracy, and duration per epoch
-epoch_losses = []
-epoch_accuracies = []
+train_losses = []
+train_accuracies = []
+test_losses = []
+test_accuracies = []
 epoch_times = []
 
-model.train()
 # Training loop
 for epoch in range(epochs):
     start_time = time.time()
@@ -43,10 +44,13 @@ for epoch in range(epochs):
     correct = 0
     total = 0
 
+    #model.train()
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device, dtype=torch.float)  # Ensure labels match output size
         optimizer.zero_grad()
         images = bim_attack(model, loss_fn, images, labels, 0.3, 3)
+        #images = fgsm_attack(model, images, labels, 0.3)
+        model.train()
         output_probs = model(images)[:, 1]  # Use only the probability for the positive class (|1⟩)
         #print(output_probs)
         loss = loss_fn(output_probs, labels)
@@ -56,52 +60,97 @@ for epoch in range(epochs):
         total += labels.size(0)
         loss.backward()
         optimizer.step()
-
-    end_time = time.time()
-    epoch_duration = end_time - start_time
-
     # Calculate average loss and accuracy for the epoch
     avg_loss = total_loss / len(train_loader)
     accuracy = correct / total
 
     # Store the results for plotting later
-    epoch_losses.append(avg_loss)
-    epoch_accuracies.append(accuracy)
+    train_losses.append(avg_loss)
+    train_accuracies.append(accuracy)
+
+    # Print epoch summary
+    print(f"Epoch [{epoch + 1}/{epochs}], "
+          f"Train loss: {avg_loss:.4f}, "
+          f"Train accuracy: {accuracy:.4f}")
+
+    total_loss = 0
+    correct = 0
+    total = 0
+    model.eval()
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images, labels = images.to(device), labels.to(device, dtype=torch.float).squeeze()  # Ensure labels match output size
+            output_probs = model(images)[:, 1]  # Use only the probability for the positive class (|1⟩)
+            loss = loss_fn(output_probs, labels)
+            total_loss += loss.item()
+            predict = torch.round(output_probs)
+            correct += (predict == labels).sum().item()
+            total += labels.size(0)
+
+        avg_loss = total_loss / len(test_loader)
+        accuracy = correct / total        
+
+    test_losses.append(avg_loss)
+    test_accuracies.append(accuracy)
+
+    end_time = time.time()
+    epoch_duration = end_time - start_time
     epoch_times.append(epoch_duration)
 
     # Print epoch summary
     print(f"Epoch [{epoch + 1}/{epochs}], "
-          f"Loss: {avg_loss:.4f}, "
-          f"Accuracy: {accuracy:.4f}, "
+          f"Test loss: {avg_loss:.4f}, "
+          f"Test accuracy: {accuracy:.4f}, "
           f"Time: {epoch_duration:.2f} seconds")
 
 # Save the trained model weights
-torch.save(model.state_dict(), "train/qModel.pth")
+torch.save(model.state_dict(), "train/weights/qModel_5layers_bim.pth")
+
+with open('gen_data/bim/train_loss_5layers_bim.csv', 'w+') as f:
+    write = csv.writer(f)
+    write.writerow(train_losses)
+
+with open('gen_data/bim/train_accuracy_5layers_bim.csv', 'w+') as f:
+    write = csv.writer(f)
+    write.writerow(train_accuracies)
+
+with open('gen_data/bim/test_loss_5layers_bim.csv', 'w+') as f:
+    write = csv.writer(f)
+    write.writerow(test_losses)
+
+with open('gen_data/bim/test_accuracy_5layers_bim.csv', 'w+') as f:
+    write = csv.writer(f)
+    write.writerow(test_accuracies)
+
 
 # Plotting the training loss and accuracy
 fig, ax1 = plt.subplots()
 
 ax2 = ax1.twinx()
-ax1.plot(range(1, epochs + 1), epoch_losses, 'g-')
-ax2.plot(range(1, epochs + 1), epoch_accuracies, 'b-')
+line1 = ax1.plot(range(1, epochs + 1, 10), train_losses[::10], linestyle='-', marker='o', color='#16425B', label='Training loss')
+line2 = ax2.plot(range(1, epochs + 1, 10), train_accuracies[::10], linestyle='-', marker='s', color='#75DDDD', label='Training accuracy')
 
-ax1.set_xlabel('Epochs')
-ax1.set_ylabel('Loss', color='g')
-ax2.set_ylabel('Accuracy', color='b')
+ax1.set_xlabel('Epochs', labelpad=10, fontweight='bold')
+ax1.set_ylabel('Loss', color='#16425B', labelpad=10, fontweight='bold')
+ax2.set_ylabel('Accuracy', color='#75DDDD', labelpad=10, fontweight='bold')
 
+lines = line1 + line2
+labs = [l.get_label() for l in lines]
+ax1.legend(lines, labs, loc='center right')
 plt.show()
 
-# Evaluation on test dataset
-model.eval()
-total_loss, correct, total = 0, 0, 0
-with torch.no_grad():
-    for images, labels in test_loader:
-        images, labels = images.to(device), labels.to(device, dtype=torch.float).squeeze()  # Ensure labels match output size
-        output_probs = model(images)[:, 1]  # Use only the probability for the positive class (|1⟩)
-        loss = loss_fn(output_probs, labels)
-        total_loss += loss.item()
-        predict = torch.round(output_probs)
-        correct += (predict == labels).sum().item()
-        total += labels.size(0)
+# Plotting the test loss and accuracy
+fig, ax1 = plt.subplots()
 
-print(f"Test Loss: {total_loss / len(test_loader):.4f}, Accuracy: {correct / total:.4f}")
+ax2 = ax1.twinx()
+line1 = ax1.plot(range(1, epochs + 1, 10), test_losses[::10], linestyle='-', marker='o', color='#16425B', label='Test loss')
+line2 = ax2.plot(range(1, epochs + 1, 10), test_accuracies[::10], linestyle='-', marker='s', color='#75DDDD', label='Test accuracy')
+
+ax1.set_xlabel('Epochs', labelpad=10, fontweight='bold')
+ax1.set_ylabel('Loss', color='#16425B', labelpad=10, fontweight='bold')
+ax2.set_ylabel('Accuracy', color='#75DDDD', labelpad=10, fontweight='bold')
+
+lines = line1 + line2
+labs = [l.get_label() for l in lines]
+ax1.legend(lines, labs, loc='center right')
+plt.show()
