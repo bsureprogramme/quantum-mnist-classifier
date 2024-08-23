@@ -112,26 +112,26 @@ for experiment in range(num_of_experiments):
             f"Time: {epoch_duration:.2f} seconds")
 
     # Save the trained model weights
-    torch.save(model.state_dict(), "train/test/weights/qModel{}_{}layers_bim.pth".format(experiment+1, model.n_layers))
+    torch.save(model.state_dict(), "train/weights/qModel{}_{}layers.pth".format(experiment+1, model.n_layers))
 
     if experiment == 0:
         filemode = 'w+'
     else:
         filemode = 'a'
 
-    with open('gen_data/test/train_loss_{}layers_bim.csv'.format(model.n_layers), filemode, newline='') as f:
+    with open('gen_data/clean/train_loss_{}layers.csv'.format(model.n_layers), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(train_losses)
 
-    with open('gen_data/test/train_accuracy_{}layers_bim.csv'.format(model.n_layers), filemode, newline='') as f:
+    with open('gen_data/clean/train_accuracy_{}layers.csv'.format(model.n_layers), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(train_accuracies)
 
-    with open('gen_data/test/test_loss_{}layers_bim.csv'.format(model.n_layers), filemode, newline='') as f:
+    with open('gen_data/clean/test_loss_{}layers.csv'.format(model.n_layers), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(test_losses)
 
-    with open('gen_data/test/test_accuracy_{}layers_bim.csv'.format(model.n_layers), filemode, newline='') as f:
+    with open('gen_data/clean/test_accuracy_{}layers.csv'.format(model.n_layers), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(test_accuracies)
 
@@ -140,18 +140,29 @@ for experiment in range(num_of_experiments):
     avg_test_losses = avg_test_losses + np.array(test_losses)
     avg_test_accuracies = avg_test_accuracies + np.array(test_accuracies)
 
-
 avg_train_losses /= num_of_experiments
 avg_train_accuracies /= num_of_experiments
 avg_test_losses /= num_of_experiments
 avg_test_accuracies /= num_of_experiments
 
+with open('gen_data/clean/train_loss_{}layers.csv'.format(model.n_layers), 'a', newline='') as f:
+    np.savetxt(f, [avg_train_losses], delimiter=',')
+
+with open('gen_data/clean/train_accuracy_{}layers.csv'.format(model.n_layers), 'a', newline='') as f:
+    np.savetxt(f, [avg_train_accuracies], delimiter=',')
+
+with open('gen_data/clean/test_loss_{}layers.csv'.format(model.n_layers), 'a', newline='') as f:
+    np.savetxt(f, [avg_test_losses], delimiter=',')
+
+with open('gen_data/clean/test_accuracy_{}layers.csv'.format(model.n_layers), 'a', newline='') as f:
+    np.savetxt(f, [avg_test_accuracies], delimiter=',')
+
 # Plotting the training loss and accuracy
 fig, ax1 = plt.subplots()
 
 ax2 = ax1.twinx()
-line1 = ax1.plot(range(1, epochs + 1, 2), avg_train_losses[::2], linestyle='-', marker='o', color='#16425B', label='Training loss')
-line2 = ax2.plot(range(1, epochs + 1, 2), avg_train_accuracies[::2], linestyle='-', marker='s', color='#75DDDD', label='Training accuracy')
+line1 = ax1.plot(range(1, epochs + 1, 10), avg_train_losses[::10], linestyle='-', marker='o', color='#16425B', label='Training loss')
+line2 = ax2.plot(range(1, epochs + 1, 10), avg_train_accuracies[::10], linestyle='-', marker='s', color='#75DDDD', label='Training accuracy')
 
 ax1.set_xlabel('Epochs', labelpad=10, fontweight='bold')
 ax1.set_ylabel('Loss', color='#16425B', labelpad=10, fontweight='bold')
@@ -166,8 +177,8 @@ plt.show()
 fig, ax1 = plt.subplots()
 
 ax2 = ax1.twinx()
-line1 = ax1.plot(range(1, epochs + 1, 2), avg_test_losses[::2], linestyle='-', marker='o', color='#16425B', label='Test loss')
-line2 = ax2.plot(range(1, epochs + 1, 2), avg_test_accuracies[::2], linestyle='-', marker='s', color='#75DDDD', label='Test accuracy')
+line1 = ax1.plot(range(1, epochs + 1, 10), avg_test_losses[::10], linestyle='-', marker='o', color='#16425B', label='Test loss')
+line2 = ax2.plot(range(1, epochs + 1, 10), avg_test_accuracies[::10], linestyle='-', marker='s', color='#75DDDD', label='Test accuracy')
 
 ax1.set_xlabel('Epochs', labelpad=10, fontweight='bold')
 ax1.set_ylabel('Loss', color='#16425B', labelpad=10, fontweight='bold')
