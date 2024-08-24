@@ -9,7 +9,7 @@ class QModel(nn.Module):
     def __init__(self):
         super(QModel, self).__init__()
         self.n_qubits = 9  # 8 for processing, 1 for output
-        self.n_layers = 2
+        self.n_layers = 5
         self.device = qml.device('default.qubit', wires=self.n_qubits)
         self.weight_shapes = {"weights": (self.n_layers, self.n_qubits, 3)}
         self.init_method = {"weights": lambda x: torch.nn.init.uniform_(x, -1 * np.pi, np.pi)}
