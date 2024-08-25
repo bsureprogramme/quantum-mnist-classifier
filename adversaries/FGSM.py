@@ -20,10 +20,9 @@ def fgsm_batch(model, batchdata, epsilon, adv_ratio):
 def fgsm_attack(model, data, target, epsilon, adv_ratio):
     """Generate FGSM adversarial examples."""
     to_perturb = np.random.choice([True, False], size=target.size(0), p=[adv_ratio, 1-adv_ratio])
-    print(to_perturb[:3])
-    data.requires_grad = True
     perturbed_data = data
-    output = model(data)[:, 1]
+    perturbed_data.requires_grad = True
+    output = model(perturbed_data)[:, 1]
     target = torch.Tensor.float(target)
     model.zero_grad()
     criterion = torch.nn.BCELoss()
@@ -35,7 +34,7 @@ def fgsm_attack(model, data, target, epsilon, adv_ratio):
     for i in range(len(to_perturb)):
         if to_perturb[i]:
             with torch.no_grad():
-                perturbed_data[i] = data[i] + delta[i]
+                perturbed_data[i] += delta[i]
     perturbed_data = torch.clamp(perturbed_data, 0, 1)
     return perturbed_data
 

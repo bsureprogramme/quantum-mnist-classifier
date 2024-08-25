@@ -23,7 +23,7 @@ learning_rate = 0.005
 epochs = 200
 num_of_experiments = 5
 # set to 'clean', 'bim' or 'fgsm'
-attack = 'fgsm'
+attack = 'bim'
 adv_ratio = 0.3
 
 # Get data loaders
@@ -34,6 +34,8 @@ avg_train_losses = np.zeros(epochs)
 avg_train_accuracies = np.zeros(epochs)
 avg_test_losses = np.zeros(epochs)
 avg_test_accuracies = np.zeros(epochs)
+adv_avg_test_losses = np.zeros(epochs)
+adv_avg_test_accuracies = np.zeros(epochs)
 
 for experiment in range(num_of_experiments):
     # Initialize the model, loss function, and optimizer
@@ -46,6 +48,8 @@ for experiment in range(num_of_experiments):
     train_accuracies = []
     test_losses = []
     test_accuracies = []
+    adv_test_losses = []
+    adv_test_accuracies = []
     epoch_times = []
 
     # Training loop
@@ -87,6 +91,8 @@ for experiment in range(num_of_experiments):
             f"Train accuracy: {accuracy:.4f}")
 
         total_loss = 0
+        adv_total_loss = 0
+        adv_correct = 0
         correct = 0
         total = 0
         model.eval()
@@ -100,11 +106,30 @@ for experiment in range(num_of_experiments):
                 correct += (predict == labels).sum().item()
                 total += labels.size(0)
 
-            avg_loss = total_loss / len(test_loader)
-            accuracy = correct / total        
+                avg_loss = total_loss / len(test_loader)
+                accuracy = correct / total
+
+        for images, labels in test_loader:
+            # perturb all images then pass through model
+            images, labels = images.to(device), labels.to(device, dtype=torch.float).squeeze()  # Ensure labels match output size
+            if attack == 'fgsm':
+                perturbed_images = fgsm_attack(model, images, labels, 0.3, 1)
+            elif attack == 'bim':
+                perturbed_images = bim_attack(model, loss_fn, images, labels, 0.3, 3, 1)
+            adv_output_probs = model(perturbed_images)[:, 1]
+            adv_loss = loss_fn(adv_output_probs, labels)
+            adv_total_loss += adv_loss.item()
+            adv_predict = torch.round(adv_output_probs)
+            adv_correct += (adv_predict == labels).sum().item()
+            total += labels.size(0)
+
+            avg_adv_loss = adv_total_loss / len(test_loader)       
+            adv_accuracy = adv_correct / total
 
         test_losses.append(avg_loss)
         test_accuracies.append(accuracy)
+        adv_test_losses.append(avg_adv_loss)
+        adv_test_accuracies.append(adv_accuracy)
 
         end_time = time.time()
         epoch_duration = end_time - start_time
@@ -140,15 +165,27 @@ for experiment in range(num_of_experiments):
         write = csv.writer(f)
         write.writerow(test_accuracies)
 
+    with open('gen_data/{}/adv_test_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), filemode, newline='') as f:
+        write = csv.writer(f)
+        write.writerow(adv_test_losses)
+
+    with open('gen_data/{}/adv_test_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), filemode, newline='') as f:
+        write = csv.writer(f)
+        write.writerow(adv_test_accuracies)
+
     avg_train_losses = avg_train_losses + np.array(train_losses)
     avg_train_accuracies = avg_train_accuracies + np.array(train_accuracies)
     avg_test_losses = avg_test_losses + np.array(test_losses)
     avg_test_accuracies = avg_test_accuracies + np.array(test_accuracies)
+    adv_avg_test_losses = avg_test_losses + np.array(adv_test_losses)
+    adv_avg_test_accuracies = avg_test_accuracies + np.array(adv_test_accuracies)
 
 avg_train_losses /= num_of_experiments
 avg_train_accuracies /= num_of_experiments
 avg_test_losses /= num_of_experiments
 avg_test_accuracies /= num_of_experiments
+adv_avg_test_losses /= num_of_experiments
+adv_avg_test_accuracies /= num_of_experiments
 
 with open('gen_data/{}/train_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
     np.savetxt(f, [avg_train_losses], delimiter=',')
@@ -161,6 +198,12 @@ with open('gen_data/{}/test_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_
 
 with open('gen_data/{}/test_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
     np.savetxt(f, [avg_test_accuracies], delimiter=',')
+
+with open('gen_data/{}/adv_test_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
+    np.savetxt(f, [adv_avg_test_losses], delimiter=',')
+
+with open('gen_data/{}/adv_test_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
+    np.savetxt(f, [adv_avg_test_accuracies], delimiter=',')
 
 # Plotting the training loss and accuracy
 fig, ax1 = plt.subplots()
