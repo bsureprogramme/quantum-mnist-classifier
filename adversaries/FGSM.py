@@ -2,6 +2,7 @@ import torch
 import os
 import sys
 import random
+import numpy as np
 
 # Add the parent directory to the system path to resolve the import issue
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -11,14 +12,17 @@ from dataset.mnist_dataset import get_mnist_dataloaders  # Assumed function from
 from model.quantum_model import QModel  # Assumed model import from quantum_model.py
 import matplotlib.pyplot as plt
 
-def fgsm_batch(model, batchdata, epsilon):
+def fgsm_batch(model, batchdata, epsilon, adv_ratio):
     for data, target in batchdata:
-        perturbed_data = fgsm_attack(model, data, target, epsilon)
+        perturbed_data = fgsm_attack(model, data, target, epsilon, adv_ratio)
     return perturbed_data
 
-def fgsm_attack(model, data, target, epsilon):
+def fgsm_attack(model, data, target, epsilon, adv_ratio):
     """Generate FGSM adversarial examples."""
+    to_perturb = np.random.choice([True, False], size=target.size(0), p=[adv_ratio, 1-adv_ratio])
+    print(to_perturb[:3])
     data.requires_grad = True
+    perturbed_data = data
     output = model(data)[:, 1]
     target = torch.Tensor.float(target)
     model.zero_grad()
@@ -26,8 +30,12 @@ def fgsm_attack(model, data, target, epsilon):
     #print(output.dtype, target.dtype)
     loss = criterion(output, target)
     loss.backward()
-    data_grad = data.grad.data
-    perturbed_data = data + epsilon * data_grad.sign()
+    perturbed_data_grad = perturbed_data.grad.data
+    delta = epsilon * perturbed_data_grad.sign()
+    for i in range(len(to_perturb)):
+        if to_perturb[i]:
+            with torch.no_grad():
+                perturbed_data[i] = data[i] + delta[i]
     perturbed_data = torch.clamp(perturbed_data, 0, 1)
     return perturbed_data
 
@@ -101,9 +109,10 @@ def main():
     plt.tight_layout()
     plt.show()
     '''
-    image = fgsm_batch(model, test_loader, epsilon=0.1)
-    plt.imshow(image[0].detach().squeeze(), cmap='gray')
-    plt.show()
+    image = fgsm_batch(model, test_loader, 0.1, 0.3)
+    for i in range(3):
+        plt.imshow(image[i].detach().squeeze(), cmap='gray')
+        plt.show()
 
 if __name__ == '__main__':
     main()

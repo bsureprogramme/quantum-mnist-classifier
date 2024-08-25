@@ -24,6 +24,7 @@ epochs = 200
 num_of_experiments = 5
 # set to 'clean', 'bim' or 'fgsm'
 attack = 'fgsm'
+adv_ratio = 0.3
 
 # Get data loaders
 train_loader, test_loader = get_mnist_dataloaders(batch_size)
@@ -59,9 +60,9 @@ for experiment in range(num_of_experiments):
             images, labels = images.to(device), labels.to(device, dtype=torch.float)  # Ensure labels match output size
             optimizer.zero_grad()
             if attack == 'bim':
-                images = bim_attack(model, loss_fn, images, labels, 0.3, 3)
+                images = bim_attack(model, loss_fn, images, labels, 0.3, 3, adv_ratio)
             elif attack == 'fgsm':
-                images = fgsm_attack(model, images, labels, 0.3)
+                images = fgsm_attack(model, images, labels, 0.3, adv_ratio)
             model.train()
             output_probs = model(images)[:, 1]  # Use only the probability for the positive class (|1⟩)
             #print(output_probs)
@@ -116,26 +117,26 @@ for experiment in range(num_of_experiments):
             f"Time: {epoch_duration:.2f} seconds")
 
     # Save the trained model weights
-    torch.save(model.state_dict(), "train/weights/qModel{}_{}layers_{}.pth".format(experiment+1, model.n_layers, attack))
+    torch.save(model.state_dict(), "train/weights/qModel{}_{}layers_{}_advr{}.pth".format(experiment+1, model.n_layers, attack, int(adv_ratio*100)))
 
     if experiment == 0:
         filemode = 'w+'
     else:
         filemode = 'a'
 
-    with open('gen_data/{}/train_loss_{}layers_{}.csv'.format(attack, model.n_layers, attack), filemode, newline='') as f:
+    with open('gen_data/{}/train_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(train_losses)
 
-    with open('gen_data/{}/train_accuracy_{}layers_{}.csv'.format(attack, model.n_layers, attack), filemode, newline='') as f:
+    with open('gen_data/{}/train_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(train_accuracies)
 
-    with open('gen_data/{}/test_loss_{}layers_{}.csv'.format(attack, model.n_layers, attack), filemode, newline='') as f:
+    with open('gen_data/{}/test_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(test_losses)
 
-    with open('gen_data/{}/test_accuracy_{}layers_{}.csv'.format(attack, model.n_layers, attack), filemode, newline='') as f:
+    with open('gen_data/{}/test_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), filemode, newline='') as f:
         write = csv.writer(f)
         write.writerow(test_accuracies)
 
@@ -149,16 +150,16 @@ avg_train_accuracies /= num_of_experiments
 avg_test_losses /= num_of_experiments
 avg_test_accuracies /= num_of_experiments
 
-with open('gen_data/{}/train_loss_{}layers_{}.csv'.format(attack, model.n_layers, attack), 'a', newline='') as f:
+with open('gen_data/{}/train_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
     np.savetxt(f, [avg_train_losses], delimiter=',')
 
-with open('gen_data/{}/train_accuracy_{}layers_{}.csv'.format(attack, model.n_layers, attack), 'a', newline='') as f:
+with open('gen_data/{}/train_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
     np.savetxt(f, [avg_train_accuracies], delimiter=',')
 
-with open('gen_data/{}/test_loss_{}layers_{}.csv'.format(attack, model.n_layers, attack), 'a', newline='') as f:
+with open('gen_data/{}/test_loss_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
     np.savetxt(f, [avg_test_losses], delimiter=',')
 
-with open('gen_data/{}/test_accuracy_{}layers_{}.csv'.format(attack, model.n_layers, attack), 'a', newline='') as f:
+with open('gen_data/{}/test_accuracy_{}layers_{}_advr{}.csv'.format(attack, model.n_layers, attack, int(adv_ratio*100)), 'a', newline='') as f:
     np.savetxt(f, [avg_test_accuracies], delimiter=',')
 
 # Plotting the training loss and accuracy
