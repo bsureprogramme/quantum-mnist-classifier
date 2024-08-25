@@ -23,7 +23,7 @@ learning_rate = 0.005
 epochs = 200
 num_of_experiments = 5
 # set to 'clean', 'bim' or 'fgsm'
-attack = 'bim'
+attack = 'fgsm'
 adv_ratio = 0.3
 
 # Get data loaders
