@@ -68,9 +68,15 @@ def plot_adv_accuracies(layers, attack, adv_ratio):
     plt.savefig('figures/adv_accuracies_{}_{}layers_advr{}'.format(attack, layers, int(adv_ratio * 100)), bbox_inches='tight')
 
 def plot_original_adversarial(attack, layers, adv_ratio, experiment_num):
+    """
+    str attack: 'bim' or 'fgsm'\n
+    int layers: either 2 or 5\n
+    float adv_ratio: between 0 and 1 inclusive, used only to determine model path\n
+    int experiment_num: between 1 and 5 inclusive, used only to determine model path\n
+    """
     plt.clf()
 
-    model_path = 'train/weights/qModel{}_{}layers_{}_advr{}.pth'.format(experiment_num, layers, attack, int(adv_ratio*100))
+    model_path = 'train/weights/qModel{}_{}layers_clean_advr{}.pth'.format(experiment_num, layers, int(adv_ratio*100))
     model = QModel()
     model.load_state_dict(torch.load(model_path, weights_only=True))
     model.eval()
@@ -118,4 +124,4 @@ def plot_original_adversarial(attack, layers, adv_ratio, experiment_num):
 
 plot_clean_traintest(5)
 plot_adv_accuracies(5, 'fgsm', 0.3)
-plot_original_adversarial('fgsm', 5, 1)
+plot_original_adversarial('fgsm', 2, 1, 1)
