@@ -124,4 +124,4 @@ def plot_original_adversarial(attack, layers, adv_ratio, experiment_num):
 
 plot_clean_traintest(2)
 plot_adv_accuracies(5, 'fgsm', 0.3)
-plot_original_adversarial('fgsm', 2, 1, 1)
+plot_original_adversarial('fgsm', 5, 1, 1)
