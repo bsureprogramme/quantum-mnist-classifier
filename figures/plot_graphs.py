@@ -1,11 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 import sys
 import os
 
 # Add the parent directory to the system path to resolve the import issue
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
+
+from adversaries.bim2 import bim_attack
+from adversaries.FGSM import fgsm_attack
+from model.quantum_model import QModel
+from dataset.mnist_dataset import get_mnist_dataloaders
 
 def plot_clean_traintest(layers):
     plt.clf()
@@ -61,6 +67,55 @@ def plot_adv_accuracies(layers, attack, adv_ratio):
     plt.legend()
     plt.savefig('figures/adv_accuracies_{}_{}layers_advr{}'.format(attack, layers, int(adv_ratio * 100)), bbox_inches='tight')
 
+def plot_original_adversarial(attack, layers, experiment_num):
+    plt.clf()
+
+    model_path = 'train/weights/qModel{}_{}layers.pth'.format(experiment_num, layers)
+    model = QModel()
+    model.load_state_dict(torch.load(model_path, weights_only=True))
+    model.eval()
+
+    _, test_loader = get_mnist_dataloaders()
+    images, labels = next(iter(test_loader))
+
+    loss = torch.nn.BCELoss()
+
+    if attack == 'bim':
+        adversaries = bim_attack(model, loss, images, labels, 0.3, 3, 1)
+    elif attack == 'fgsm':
+        adversaries = fgsm_attack(model, images, labels, 0.3, 1)
+
+    outputs = model(adversaries)[:, 1]
+    predictions = torch.round(outputs)
+
+    cols, rows = 4, 2
+    figure, axes = plt.subplots(ncols=cols, nrows=rows, figsize=(4,8))
+    for i in range(cols):
+        figure.add_subplot(rows, cols, i+1)
+        index = np.random.randint(0, len(adversaries)-1)
+        plt.axis('off')
+        plt.title("True: {}/Pred: {}".format(int(labels[index].item()), int(predictions[index].item())))
+        plt.imshow(adversaries[index].detach().squeeze(), cmap='gray')
+        figure.add_subplot(rows, cols, cols+i+1)
+        plt.imshow(images[index].detach().squeeze(), cmap='gray')
+        plt.axis('off')
+
+    rowtitles = ['Adversarial Image', 'Original Image']
+
+    for ax in axes.ravel():
+        ax.grid(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines[['right', 'top', 'left', 'bottom']].set_visible(False)
+
+    for ax, row in zip(axes[:,0], rowtitles):
+        ax.set_ylabel(row, size='x-large', fontweight='bold')
+    
+    figure = plt.gcf()  # get current figure
+    figure.set_size_inches(16, 9) # set figure's size manually to your full screen (32x18)
+    figure.savefig('figures/original_adversarial.png', bbox_inches='tight')
+
 
 plot_clean_traintest(5)
 plot_adv_accuracies(5, 'fgsm', 0.3)
+plot_original_adversarial('fgsm', 5, 1)
