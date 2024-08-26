@@ -122,6 +122,6 @@ def plot_original_adversarial(attack, layers, adv_ratio, experiment_num):
     figure.savefig('figures/original_adversarial.png', bbox_inches='tight')
 
 
-plot_clean_traintest(5)
+plot_clean_traintest(2)
 plot_adv_accuracies(5, 'fgsm', 0.3)
 plot_original_adversarial('fgsm', 2, 1, 1)
