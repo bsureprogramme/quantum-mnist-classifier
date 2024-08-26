@@ -67,10 +67,10 @@ def plot_adv_accuracies(layers, attack, adv_ratio):
     plt.legend()
     plt.savefig('figures/adv_accuracies_{}_{}layers_advr{}'.format(attack, layers, int(adv_ratio * 100)), bbox_inches='tight')
 
-def plot_original_adversarial(attack, layers, experiment_num):
+def plot_original_adversarial(attack, layers, adv_ratio, experiment_num):
     plt.clf()
 
-    model_path = 'train/weights/qModel{}_{}layers.pth'.format(experiment_num, layers)
+    model_path = 'train/weights/qModel{}_{}layers_{}_advr{}.pth'.format(experiment_num, layers, attack, int(adv_ratio*100))
     model = QModel()
     model.load_state_dict(torch.load(model_path, weights_only=True))
     model.eval()
