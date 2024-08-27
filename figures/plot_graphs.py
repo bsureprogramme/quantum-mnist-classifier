@@ -121,7 +121,45 @@ def plot_original_adversarial(attack, layers, adv_ratio, experiment_num):
     figure.set_size_inches(16, 9) # set figure's size manually to your full screen (32x18)
     figure.savefig('figures/original_adversarial.png', bbox_inches='tight')
 
+def average_test_accuracies(layers, attack):
+    '''
+    This function computes the test accuracies of fgsm and bim attacks on a model trained on clean data.
+    '''
+    accuracies = np.zeros(5)
+    for i in range(5):
+        model = QModel()
+        model.load_state_dict(torch.load('train/weights/qModel{}_{}layers.pth'.format(i+1, layers), weights_only=True))
+        model.eval()
+        loss = torch.nn.BCELoss()
+        _, test_loader = get_mnist_dataloaders()
+        if attack == 'bim':
+            correct = 0
+            total = 0
+            for images, labels in test_loader:
+                adversarials = bim_attack(model, loss, images, labels, 0.3, 3, 1)
+                output = model(adversarials)[:, 1]
+                predict = torch.round(output)
+                correct += (predict == labels).sum()
+                total += labels.size(0)
+            accuracy = correct/total
+            accuracies[i] = accuracy
+        elif attack == 'fgsm':
+            correct = 0
+            total = 0
+            for images, labels in test_loader:
+                adversarials = fgsm_attack(model, images, labels, 0.3, 1)
+                output = model(adversarials)[:, 1]
+                predict = torch.round(output)
+                correct += (predict == labels).sum()
+                total += labels.size(0)
+            accuracy = correct/total
+            accuracies[i] = accuracy
+    avg_accuracy = np.mean(accuracies)
 
-plot_clean_traintest(2)
+    np.savetxt('gen_data/cleanmodel_advattack.csv', avg_accuracy)                           
+
+
+#plot_clean_traintest(5)
 plot_adv_accuracies(5, 'fgsm', 0.3)
-plot_original_adversarial('fgsm', 5, 1, 1)
+#plot_original_adversarial('fgsm', 5, 1, 1)
+#average_test_accuracies(5, 'bim')
